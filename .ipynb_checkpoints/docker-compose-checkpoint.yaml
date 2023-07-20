@@ -1,0 +1,73 @@
+---
+version: '3'
+services:
+  oven:
+    image: oven
+    container_name: oven
+    hostname: oven
+    user: root
+    ports:
+      - "80:80"
+    volumes:
+      - ./oven/:/home
+  kafkaproducer:
+    image: kafkaproducer
+    container_name: kafkaproducer
+    hostname: kafkaproducer
+    links:
+      - broker
+    depends_on:
+      - broker
+    user: root
+    environment:
+      KAFKA_BROKER: broker:29092
+    volumes:
+      - ./kafka_producer/:/home
+  spark:
+    image: spark
+    container_name: spark
+    hostname: spark
+    user: root
+    links:
+      - broker
+    depends_on:
+      - broker
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "10000:8888"
+    volumes:
+      - ./spark/:/home
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - ./kafka:/home
+  broker:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: broker
+    depends_on:
+      - zookeeper
+    links:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_BROKER: broker:29092
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - ./kafka/:/home
